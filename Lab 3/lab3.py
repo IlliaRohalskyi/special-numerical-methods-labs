@@ -43,7 +43,7 @@ class Matrix:
         Returns:
             A tuple containing the L and U matrices as Matrix objects.
         """
-        num_rows = self.rows  # Use descriptive variable name
+        num_rows = self.rows
         lower_triangular_matrix = Matrix.identity(num_rows)
         upper_triangular_matrix = Matrix(num_rows, num_rows)
         for i in range(num_rows):
