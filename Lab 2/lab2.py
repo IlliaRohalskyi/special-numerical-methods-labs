@@ -84,6 +84,44 @@ class Matrix:
             result = result.matrix_multiply(self)
         return result
 
+    def largest_eigenvalue(self, eps=1e-6):
+        """
+        Finds the largest eigenvalue (by magnitude) of the matrix using the
+        iterative method by magnitude.
+
+        Args:
+            eps: The desired tolerance for convergence.
+
+        Returns:
+            A tuple containing the approximate largest eigenvalue and the corresponding eigenvector.
+        """
+        num_rows = self.rows
+        eigenvector = [1.0 if i == 0 else 0.0 for i in range(num_rows)]
+        previous_eigenvector = None
+
+        while True:
+            intermediate_result = [
+                sum(self.data[i][j] * eigenvector[j] for j in range(num_rows))
+                for i in range(num_rows)
+            ]
+            largest_magnitude = max(abs(val) for val in intermediate_result)
+            eigenvector = [val / largest_magnitude for val in intermediate_result]
+
+            if previous_eigenvector is None:
+                previous_eigenvector = eigenvector.copy()
+                continue
+            convergence = (
+                sum(
+                    abs(eigenvector[i] - previous_eigenvector[i])
+                    for i in range(num_rows)
+                )
+                < eps
+            )
+
+            if convergence:
+                return largest_magnitude, eigenvector
+            previous_eigenvector = eigenvector.copy()
+
     def __str__(self):
         """String representation of the matrix."""
         return "\n".join([" ".join(map(str, row)) for row in self.data])
@@ -91,30 +129,26 @@ class Matrix:
 
 def test():
     """Test the Matrix class."""
-    matrix_a = Matrix(2, 2)
-    matrix_a.data = [[1, 2], [3, 4]]
-    matrix_b = Matrix(2, 2)
-    matrix_b.data = [[5, 6], [7, 8]]
+    a_np = np.random.rand(5, 5)
 
-    print("A + B:")
-    print(matrix_a.add(matrix_b))
-    print(np.array(matrix_a.data) + np.array(matrix_b.data))
+    a_matrix = Matrix(a_np.shape[0], a_np.shape[1])
+    a_matrix.data = a_np.tolist()
 
-    print("2 * A:")
-    print(matrix_a.scalar_multiply(2))
-    print(2 * np.array(matrix_a.data))
+    eigvals, _ = np.linalg.eig(a_np)
+    largest_eigval_np = np.abs(eigvals).max()
 
-    print("A * B:")
-    print(matrix_a.matrix_multiply(matrix_b))
-    print(np.matmul(np.array(matrix_a.data), np.array(matrix_b.data)))
+    largest_eigval_matrix, _ = a_matrix.largest_eigenvalue()
 
-    print("Transposed matrix A:")
-    print(matrix_a.transpose())
-    print(np.transpose(np.array(matrix_a.data)))
+    print("Matrix (NumPy):")
+    print(a_np)
+    print("\nMatrix (Matrix class):")
+    print(a_matrix)
 
-    print("A^2:")
-    print(matrix_a.power(2))
-    print(np.linalg.matrix_power(np.array(matrix_a.data), 2))
+    assert np.allclose(
+        largest_eigval_matrix, largest_eigval_np
+    ), "Approximation inaccurate"
+
+    print("Test passed! The function seems to be working correctly.")
 
 
 test()
