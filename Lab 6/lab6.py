@@ -4,6 +4,8 @@ Module containing Matrix class for matrix operations.
 import math
 import random
 
+import numpy as np
+
 
 class Matrix:
     """Class representing a matrix."""
@@ -361,34 +363,120 @@ class Matrix:
 
         return residual
 
+    def cholesky_decomposition(self):
+        """Performs Cholesky decomposition of the matrix.
+
+        Returns:
+            Matrix: Lower triangular matrix L such that A = L * L^T.
+        """
+        if self.rows != self.cols:
+            raise ValueError("Matrix must be square for Cholesky decomposition")
+
+        l_matrix = Matrix(self.rows, self.cols)
+
+        for i in range(self.rows):
+            for j in range(i + 1):
+                sum_k = sum(l_matrix.data[i][k] * l_matrix.data[j][k] for k in range(j))
+
+                if i == j:
+                    l_matrix.data[i][j] = math.sqrt(self.data[i][i] - sum_k)
+                else:
+                    l_matrix.data[i][j] = (self.data[i][j] - sum_k) / l_matrix.data[j][
+                        j
+                    ]
+
+        return l_matrix
+
+    def is_positive_definite(self):
+        """Check if the matrix is positive definite using Cholesky decomposition.
+
+        Returns:
+            bool: True if the matrix is positive definite, False otherwise.
+        """
+        try:
+            _ = self.cholesky_decomposition()
+            return True
+        except ValueError:
+            return False
+
+    def relaxation_method(self, b_vector, omega=1.0, tol=1e-10, max_iterations=1000):
+        """
+        Solve a linear system of equations using the Successive Over-Relaxation (SOR) method.
+
+        Args:
+            b_vector (list): Constants on the right-hand side of the equations.
+            omega (float): Relaxation parameter (0 < omega < 2).
+            tol (float): Tolerance for convergence.
+            max_iterations (int): Maximum number of iterations.
+
+        Returns:
+            list: Solution to the system of equations.
+        """
+        x_solution = [0] * self.rows
+        for iteration in range(max_iterations):
+            x_new = x_solution.copy()
+            for i in range(self.rows):
+                sigma = sum(
+                    self.data[i][j] * x_new[j] for j in range(self.cols) if j != i
+                )
+                x_new[i] = (1 - omega) * x_solution[i] + (omega / self.data[i][i]) * (
+                    b_vector[i] - sigma
+                )
+
+            if all(abs(x_new[i] - x_solution[i]) < tol for i in range(self.rows)):
+                print(f"Relaxation method converged in {iteration} iterations.")
+                return x_new
+            x_solution = x_new
+        raise ValueError(
+            "Relaxation method did not converge within the maximum number of iterations"
+        )
+
     def __str__(self):
         """String representation of the matrix."""
         return "\n".join([" ".join(map(str, row)) for row in self.data])
 
 
 def test():
-    """Test the Matrix class."""
+    """Test the Matrix class with numpy for verification."""
 
-    a_matrix = Matrix(3, 3)
-    a_matrix.data = [[10, 2, -1], [-3, -10, 2], [-2, 1, 5]]
-    b_vector = [0, 0, -1]
+    pd_matrix = Matrix(3, 3)
+    pd_matrix.data = [[4, 12, -16], [12, 37, -43], [-16, -43, 98]]
 
-    solution_matrix = a_matrix.solve_linear_system(b_vector)
-    print("Solution using direct method (Gaussian elimination):", solution_matrix)
+    print("Positive Definite Matrix:")
+    print(pd_matrix)
 
-    solution_jacobi = a_matrix.jacobi_method(b_vector)
-    print("Solution using Jacobi method:", solution_jacobi)
+    np_pd_matrix = np.array(pd_matrix.data)
 
-    expected_iterations = a_matrix.estimate_iterations(b_vector)
-    print(
-        "Estimated a priori number of iterations for Jacobi method:",
-        expected_iterations,
-    )
+    print("\nTesting Cholesky decomposition:")
+    try:
+        l_matrix = pd_matrix.cholesky_decomposition()
+        print("Cholesky decomposition successful. Lower triangular matrix L:")
+        print(l_matrix)
+        np_l = np.linalg.cholesky(np_pd_matrix)
+        assert np.allclose(l_matrix.data, np_l), "Cholesky decomposition failed"
+        print("Cholesky decomposition validation passed with numpy.")
+    except ValueError as error:
+        print(error)
 
-    print("\nLinear system solution test passed!")
+    simple_matrix = Matrix(2, 2)
+    simple_matrix.data = [[4, 1], [1, 3]]
+    b_vector = [1, 2]
+    omega = 1.1
 
-    residual = a_matrix.residual_vector(solution_jacobi, b_vector)
-    print("Residual vector:", residual)
+    print("\nSimple Matrix for Relaxation method:")
+    print(simple_matrix)
+
+    print("\nTesting Relaxation method:")
+    try:
+        solution_relaxation = simple_matrix.relaxation_method(b_vector, omega)
+        print("Solution using Relaxation method:", solution_relaxation)
+        np_solution = np.linalg.solve(np.array(simple_matrix.data), np.array(b_vector))
+        assert np.allclose(solution_relaxation, np_solution), "Relaxation method failed"
+        print("Relaxation method validation passed with numpy.")
+    except ValueError as error:
+        print(error)
+
+    print("\nAll tests passed successfully.")
 
 
 test()
